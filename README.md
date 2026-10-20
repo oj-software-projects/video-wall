@@ -35,7 +35,7 @@ sudo apt install build-essential pkg-config \
 Verify everything is visible to pkg-config:
 
 ```
-pkg-config --exists gio-2.0 gtk+-3.0 webkit2gtk-4.1 javascriptcoregtk-4.1 soup-3.0 wayland-client && echo all-deps-ok
+pkg-config --exists gio-2.0 gtk+-3.0 webkit2gtk-4.1 javascriptcoregtk-4.1 libsoup-3.0 wayland-client && echo all-deps-ok
 ```
 
 Other distributions: Fedora `webkit2gtk4.1-devel gtk3-devel wayland-devel`,
