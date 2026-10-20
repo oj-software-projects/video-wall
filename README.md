@@ -21,12 +21,21 @@ transcode. Without them every file is played directly.
 |---|---|---|
 | macOS 11+ | Xcode Command Line Tools | none (WKWebView is part of the OS) |
 | Windows 10/11 | MSVC toolchain | WebView2 runtime (preinstalled on Win 11) |
-| Linux | `libwebkit2gtk-4.1-dev libgtk-3-dev libglib2.0-dev libwayland-dev pkg-config` | `libwebkit2gtk-4.1-0`, `libgtk-3-0`, and `xdg-desktop-portal` for the folder/delete dialogs |
+| Linux | see the apt command below | `libwebkit2gtk-4.1-0`, `libgtk-3-0`, and `xdg-desktop-portal` for the folder/delete dialogs |
 
 Linux build deps on Debian/Ubuntu:
 
 ```
-sudo apt install build-essential pkg-config libglib2.0-dev libgtk-3-dev libwebkit2gtk-4.1-dev libwayland-dev
+sudo apt install build-essential pkg-config \
+  libglib2.0-dev libgtk-3-dev \
+  libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev libsoup-3.0-dev \
+  libwayland-dev ffmpeg
+```
+
+Verify everything is visible to pkg-config:
+
+```
+pkg-config --exists gio-2.0 gtk+-3.0 webkit2gtk-4.1 javascriptcoregtk-4.1 soup-3.0 wayland-client && echo all-deps-ok
 ```
 
 Other distributions: Fedora `webkit2gtk4.1-devel gtk3-devel wayland-devel`,
