@@ -59,19 +59,33 @@ fn main() {
     let app = server::start_app(state);
     log::info("main", &format!("listening on {}", app.url));
 
+    // A normal window, not a near-fullscreen one: at most 1280x800 points,
+    // shrunk on small displays. The monitor reports physical pixels, so the
+    // size must be converted to logical points first.
     let (width, height) = event_loop
         .primary_monitor()
         .map(|monitor| {
-            let size = monitor.size();
-            (size.width as f64 * 0.9, size.height as f64 * 0.9)
+            let logical = monitor.size().to_logical::<f64>(monitor.scale_factor());
+            ((logical.width * 0.9).min(1280.0), (logical.height * 0.9).min(800.0))
         })
         .unwrap_or((1280.0, 800.0));
 
     let window = WindowBuilder::new()
         .with_title("video-wall - Multi-Video Player")
         .with_inner_size(tao::dpi::LogicalSize::new(width, height))
+        .with_visible(true)
         .build(&event_loop)
         .expect("cannot create window");
+
+    if let Some(monitor) = event_loop.primary_monitor() {
+        let scale = monitor.scale_factor();
+        let size = monitor.size().to_logical::<f64>(scale);
+        let origin = monitor.position().to_logical::<f64>(scale);
+        window.set_outer_position(tao::dpi::LogicalPosition::new(
+            origin.x + (size.width - width) / 2.0,
+            origin.y + (size.height - height) / 2.0,
+        ));
+    }
 
     let webview = WebViewBuilder::new()
         .with_url(app.url.as_str())
@@ -80,10 +94,14 @@ fn main() {
     if cli.dev {
         webview.open_devtools();
     }
+    window.set_focus();
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
         match event {
+            Event::NewEvents(tao::event::StartCause::Init) => {
+                window.set_focus();
+            }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..

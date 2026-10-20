@@ -53,6 +53,8 @@ Each runner compiles natively, so the Linux binary links the runner's glibc.
 
 ## Deliberate decisions / deviations
 
+- **Window startup**: opens at `min(90% of the screen, 1280x800 points)`,
+  centred, and takes focus instead of the spec's 90% full-bleed window.
 - **Product renamed `video-wall`**: binary, window/page title, toolbar, CLI usage
   and app-data dirs (`video-wall/config.json`, `~/.video-wall/logs/app.log`).
   The spec's `toomanyvids` paths existed so Electron settings would carry over;
