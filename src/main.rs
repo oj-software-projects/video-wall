@@ -1,5 +1,17 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
+/// WebKitGTK's DMABUF renderer leaves a blank window on some drivers and in
+/// virtual machines. Disable it unless the user explicitly picked a value.
+#[cfg(target_os = "linux")]
+fn linux_graphics_defaults() {
+    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn linux_graphics_defaults() {}
+
 mod cli;
 mod config;
 mod log;
@@ -15,6 +27,7 @@ use tao::window::WindowBuilder;
 use wry::WebViewBuilder;
 
 fn main() {
+    linux_graphics_defaults();
     let args: Vec<String> = std::env::args().skip(1).collect();
     let cli = match cli::parse(&args) {
         Ok(cli) => cli,
@@ -87,8 +100,14 @@ fn main() {
         ));
     }
 
+    let app_origin = app.url.trim_end_matches('/').to_string();
+    let app_base = format!("{app_origin}/");
     let webview = WebViewBuilder::new()
         .with_url(app.url.as_str())
+        // The renderer never navigates away; deny anything else and any
+        // attempt to open a new window.
+        .with_navigation_handler(move |url| url == app_origin || url.starts_with(&app_base))
+        .with_new_window_req_handler(|_, _| wry::NewWindowResponse::Deny)
         .build(&window)
         .expect("cannot create webview");
     if cli.dev {

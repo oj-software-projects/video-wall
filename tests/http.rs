@@ -45,25 +45,42 @@ impl App {
             }
         }
         assert!(!url.is_empty(), "no URL printed");
-        let port = url
-            .trim_end_matches('/')
+        let authority = url
+            .split("://")
+            .nth(1)
+            .expect("scheme")
+            .split('/')
+            .next()
+            .expect("authority");
+        let port = authority
             .rsplit(':')
             .next()
             .expect("port")
             .parse()
             .expect("numeric port");
 
-        // The run token is embedded in the served page; every API call needs it.
-        let page = http(port, "GET", "/", None, None);
+        // The printed URL carries the run token; it is also embedded in the
+        // served page, and every API call needs it.
+        let token = url
+            .split("token=")
+            .nth(1)
+            .expect("run token in url")
+            .to_string();
+        let page = http(
+            port,
+            "GET",
+            &format!("/?token={token}"),
+            None,
+            None,
+        );
         assert_eq!(page.status, 200);
         let html = String::from_utf8_lossy(&page.body).to_string();
-        let marker = "<meta name=\"tmv-token\" content=\"";
-        let start = html.find(marker).expect("token meta") + marker.len();
-        let token = html[start..]
-            .split('"')
-            .next()
-            .expect("token value")
-            .to_string();
+        assert!(html.contains("<meta name=\"tmv-token\""));
+        assert_eq!(
+            http(port, "GET", "/", None, None).status,
+            403,
+            "the page must not be served without the run token"
+        );
         App {
             child,
             port,

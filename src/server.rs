@@ -17,6 +17,7 @@ use crate::{log, scan, select};
 
 pub const MEDIA_SERVERS: usize = 16;
 const RANGE_CHUNK: u64 = 2 * 1024 * 1024;
+const MAX_API_BODY: usize = 64 * 1024;
 
 pub const INDEX_HTML: &str = include_str!("assets/index.html");
 pub const APP_CSS: &str = include_str!("assets/app.css");
@@ -124,7 +125,11 @@ fn handle_media(
         return respond_text(req, 404, "not found");
     }
     let query = parse_query(query);
-    if query.get("token").map(String::as_str) != Some(token) {
+    let authorized = query
+        .get("token")
+        .map(|presented| ct_eq(presented, token))
+        .unwrap_or(false);
+    if !authorized {
         return respond_text(req, 403, "forbidden");
     }
     let Some(id) = query.get("id") else {
@@ -319,11 +324,25 @@ fn base_headers(ctype: &str) -> Vec<Header> {
         h("Vary", "Origin"),
         h("Access-Control-Allow-Headers", "Range"),
         h("Access-Control-Expose-Headers", "Content-Length, Content-Range"),
+        h("X-Content-Type-Options", "nosniff"),
     ]
 }
 
 fn h(name: &str, value: &str) -> Header {
     Header::from_bytes(name.as_bytes(), value.as_bytes()).expect("valid header")
+}
+
+/// Constant-time compare for secrets. Length is not secret (fixed-size tokens).
+fn ct_eq(a: &str, b: &str) -> bool {
+    let (a, b) = (a.as_bytes(), b.as_bytes());
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (x, y) in a.iter().zip(b) {
+        diff |= x ^ y;
+    }
+    diff == 0
 }
 
 fn parse_query(query: &str) -> HashMap<String, String> {
@@ -461,7 +480,7 @@ pub fn start_app(state: Arc<State>) -> App {
         .to_ip()
         .expect("app server has a TCP address")
         .port();
-    let url = format!("http://127.0.0.1:{port}/");
+    let url = format!("http://127.0.0.1:{port}/?token={}", state.app_token);
     let shared = Arc::clone(&state);
     thread::spawn(move || {
         for request in server.incoming_requests() {
@@ -487,30 +506,45 @@ fn handle_app(mut req: Request, state: &State) -> io::Result<()> {
             .headers()
             .iter()
             .find(|header| header.field.equiv("x-tmv-token"))
-            .map(|header| header.value.as_str().to_string());
-        if presented.as_deref() != Some(state.app_token.as_str()) {
+            .map(|header| header.value.as_str().to_string())
+            .unwrap_or_default();
+        if !ct_eq(&presented, &state.app_token) {
             return respond_text(req, 403, "forbidden");
         }
     }
 
     match path.as_str() {
         "/" | "/index.html" => {
+            // The page carries the run token; do not hand it to anyone who
+            // cannot already prove they know it.
+            let authorized = url
+                .split_once('?')
+                .map(|(_, query)| parse_query(query))
+                .and_then(|query| query.get("token").cloned())
+                .map(|presented| ct_eq(&presented, &state.app_token))
+                .unwrap_or(false);
+            if !authorized {
+                return respond_text(req, 403, "forbidden");
+            }
             let html = INDEX_HTML.replace("__TMV_TOKEN__", &state.app_token);
             req.respond(
                 Response::from_string(html)
-                    .with_header(h("Content-Type", "text/html; charset=utf-8")),
+                    .with_header(h("Content-Type", "text/html; charset=utf-8"))
+                    .with_header(h("X-Content-Type-Options", "nosniff")),
             )
         }
         "/app.css" => {
             req.respond(
                 Response::from_string(APP_CSS)
-                    .with_header(h("Content-Type", "text/css; charset=utf-8")),
+                    .with_header(h("Content-Type", "text/css; charset=utf-8"))
+                    .with_header(h("X-Content-Type-Options", "nosniff")),
             )
         }
         "/app.js" => {
             req.respond(
                 Response::from_string(APP_JS)
-                    .with_header(h("Content-Type", "text/javascript; charset=utf-8")),
+                    .with_header(h("Content-Type", "text/javascript; charset=utf-8"))
+                    .with_header(h("X-Content-Type-Options", "nosniff")),
             )
         }
         "/api/lobby" => json_response(req, lobby(state)),
@@ -542,8 +576,12 @@ fn handle_app(mut req: Request, state: &State) -> io::Result<()> {
                 .and_then(|v| v.as_str())
                 .unwrap_or("INFO")
                 .to_ascii_uppercase();
-            let message = body.get("message").and_then(|v| v.as_str()).unwrap_or("");
-            log::write(&level, "renderer", message, body.get("meta").cloned());
+            let message = body
+                .get("message")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .replace(['\n', '\r'], " ");
+            log::write(&level, "renderer", &message, body.get("meta").cloned());
             json_response(req, json!({ "ok": true }))
         }
         "/api/quit" => {
@@ -562,13 +600,19 @@ fn handle_app(mut req: Request, state: &State) -> io::Result<()> {
 fn json_response(req: Request, value: Value) -> io::Result<()> {
     req.respond(
         Response::from_string(value.to_string())
-            .with_header(h("Content-Type", "application/json; charset=utf-8")),
+            .with_header(h("Content-Type", "application/json; charset=utf-8"))
+            .with_header(h("X-Content-Type-Options", "nosniff")),
     )
 }
 
 fn read_json(req: &mut Request) -> Value {
     let mut body = String::new();
-    let _ = req.as_reader().read_to_string(&mut body);
+    // API payloads are a few hundred bytes; cap the read so a local client
+    // cannot exhaust memory with a huge body.
+    let _ = req
+        .as_reader()
+        .take(MAX_API_BODY as u64)
+        .read_to_string(&mut body);
     serde_json::from_str(&body).unwrap_or(Value::Null)
 }
 
@@ -840,6 +884,14 @@ mod tests {
         assert_eq!(content_type("mkv"), "video/x-matroska");
         assert_eq!(content_type("mp4"), "video/mp4");
         assert_eq!(content_type("xyz"), "application/octet-stream");
+    }
+
+    #[test]
+    fn constant_time_compare() {
+        assert!(ct_eq("abc", "abc"));
+        assert!(!ct_eq("abc", "abd"));
+        assert!(!ct_eq("abc", "ab"));
+        assert!(!ct_eq("", "a"));
     }
 
     #[test]

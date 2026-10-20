@@ -43,6 +43,28 @@ Arch `webkit2gtk-4.1 gtk3 wayland`, openSUSE `webkit2gtk4.1-devel gtk3-devel
 wayland-devel`. The Wayland headers come from tao's Wayland backend; without
 them `wayland-sys` fails in its build script.
 
+## Security
+
+- Both HTTP servers bind `127.0.0.1` only. Every media URL carries a 128-bit
+  per-run token; the page and every `/api/*` call need a separate per-run app
+  token (constant-time compared). `/` is only served with that token, so no
+  unauthenticated endpoint hands it out.
+- Renderer: CSP (no inline script, no external resources, `connect-src 'self'`),
+  DOM built exclusively with `textContent`, navigation away from the app origin
+  and new windows denied.
+- API bodies are capped at 64 KiB; unknown ids are 404; requests without the
+  token are 403 before any id handling; deleted paths leave the id map.
+- ffmpeg/ffprobe are invoked without a shell and never with user-controlled
+  arguments.
+
+## Linux troubleshooting
+
+Blank (white) window: WebKitGTK's DMABUF renderer on some GPUs and in VMs. The
+app disables it by default (`WEBKIT_DISABLE_DMABUF_RENDERER=1`); re-enable the
+fast path with `WEBKIT_DISABLE_DMABUF_RENDERER=0`. If the window is still blank,
+add `WEBKIT_DISABLE_COMPOSITING_MODE=1`. On NVIDIA also try
+`__NV_DISABLE_EXPLICIT_SYNC=1` and `nvidia_drm.modeset=1`.
+
 ## Releases
 
 `.github/workflows/release.yml` builds on every `v*` tag (or manually via
