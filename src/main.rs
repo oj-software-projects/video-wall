@@ -29,7 +29,7 @@ fn main() {
         return;
     }
 
-    log::info("main", "starting video-wall 0.1.3");
+    log::info("main", "starting video-wall 0.1.4");
     log::info("cli", &format!("args: {args:?}"));
 
     let tools = media::discover();
