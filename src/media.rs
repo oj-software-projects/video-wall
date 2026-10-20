@@ -103,13 +103,22 @@ fn works(binary: &Path) -> bool {
     }
 }
 
+fn exe_name(name: &str) -> String {
+    if cfg!(windows) {
+        format!("{name}.exe")
+    } else {
+        name.to_string()
+    }
+}
+
 fn find_binary(env_var: &str, name: &str) -> Option<PathBuf> {
     let mut candidates: Vec<PathBuf> = Vec::new();
     if let Some(explicit) = std::env::var_os(env_var) {
         candidates.push(PathBuf::from(explicit));
     }
+    let file = exe_name(name);
     for dir in candidate_dirs() {
-        candidates.push(dir.join(name));
+        candidates.push(dir.join(&file));
     }
     candidates.into_iter().find(|candidate| works(candidate))
 }

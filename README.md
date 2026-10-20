@@ -5,7 +5,7 @@ Plays many local video files at once in a grid. Implements `RUST_REWRITE_SPEC.md
 ## Build and run
 
 ```
-cargo build --release
+cargo build --release --locked
 target/release/video-wall                 # lobby
 target/release/video-wall --dirs ~/Movies --grid 3x2   # straight to the wall
 cargo test                                 # unit + HTTP integration (ffmpeg required)
@@ -14,6 +14,31 @@ cargo test                                 # unit + HTTP integration (ffmpeg req
 Requires `ffmpeg`/`ffprobe` (PATH, `FFMPEG_PATH`/`FFPROBE_PATH`, or the usual
 platform directories) for `.mkv/.avi/.flv/.wmv/.3gp` remux and `.mpg/.mpeg`
 transcode. Without them every file is played directly.
+
+### Platform requirements
+
+| OS | Build | Runtime |
+|---|---|---|
+| macOS 11+ | Xcode Command Line Tools | none (WKWebView is part of the OS) |
+| Windows 10/11 | MSVC toolchain | WebView2 runtime (preinstalled on Win 11) |
+| Linux | `libwebkit2gtk-4.1-dev libgtk-3-dev pkg-config` | `libwebkit2gtk-4.1-0`, `libgtk-3-0`, and `xdg-desktop-portal` for the folder/delete dialogs |
+
+Linux build deps on Debian/Ubuntu:
+
+```
+sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev pkg-config
+```
+
+## Releases
+
+`.github/workflows/release.yml` builds on every `v*` tag (or manually via
+workflow_dispatch) and publishes:
+
+- `video-wall-macos-universal` — arm64 + x86_64 via `lipo`
+- `video-wall-linux-x86_64`
+- `video-wall-windows-x86_64.exe`
+
+Each runner compiles natively, so the Linux binary links the runner's glibc.
 
 ## Shape
 

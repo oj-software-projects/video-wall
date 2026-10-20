@@ -24,6 +24,8 @@ impl App {
             .arg("--headless")
             .args(args)
             .env("HOME", home)
+            .env("USERPROFILE", home)
+            .env("APPDATA", home)
             .env("XDG_CONFIG_HOME", home.join(".config"))
             .stdout(Stdio::piped())
             .stderr(Stdio::null())

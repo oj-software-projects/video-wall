@@ -847,6 +847,8 @@ function enterFullscreen(cell) {
   $('#fs').hidden = false;
   updateFsUi();
   applyRotation(cell);
+  // The same element is moved into the overlay; resume it there.
+  cell.video.play().catch(() => {});
 }
 
 function exitFullscreen() {
