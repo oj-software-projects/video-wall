@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="tmv-token" content="__TMV_TOKEN__">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src http://127.0.0.1:*; connect-src http://127.0.0.1:*; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>video-wall - Multi-Video Player</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div id="lobby">
+  <div class="card">
+    <h1>video-wall</h1>
+    <section>
+      <h2>Folders</h2>
+      <div id="dirList"></div>
+      <div id="dirEmpty" class="muted">No folders yet</div>
+      <button id="addFolder" class="secondary">+ Add folder</button>
+    </section>
+    <section>
+      <h2>Grid</h2>
+      <div class="presets">
+        <button class="preset" data-rows="2" data-cols="2">2×2</button>
+        <button class="preset" data-rows="3" data-cols="3">3×3</button>
+        <button class="preset" data-rows="4" data-cols="2">4×2</button>
+        <button class="preset" data-rows="4" data-cols="4">4×4</button>
+      </div>
+      <div class="grid-inputs">
+        <label>rows <input id="rows" type="number" min="1" max="8" value="2"></label>
+        <label>cols <input id="cols" type="number" min="1" max="8" value="2"></label>
+        <span id="cellLabel" class="muted">4 videos</span>
+      </div>
+    </section>
+    <section>
+      <h2>Playback</h2>
+      <label class="check"><input id="shuffle" type="checkbox"> Shuffle</label>
+      <label class="check"><input id="loop" type="checkbox"> Loop</label>
+      <label class="check"><input id="mute" type="checkbox"> Mute</label>
+    </section>
+    <div class="footer">
+      <div id="lobbyStatus" class="error"></div>
+      <button id="startBtn" class="primary">Start Wall</button>
+    </div>
+    <div class="hint">Press Tab, Esc or the Setup button while playing to come back here. Settings are saved on start.</div>
+  </div>
+</div>
+
+<div id="wall" hidden>
+  <div id="toolbar">
+    <span class="brand">video-wall</span>
+    <span id="status"></span>
+    <span class="spacer"></span>
+    <button id="setup" title="Back to setup (Esc or Tab)">Setup</button>
+    <button id="reshuffle" title="Reshuffle (R)">Reshuffle</button>
+    <button id="pause" title="Pause/Resume (P)">Pause</button>
+    <button id="mute" title="Toggle Mute (M)">Unmute</button>
+  </div>
+  <div id="grid"></div>
+</div>
+
+<div id="fs" hidden>
+  <div class="fs-stage" id="fsVideo"></div>
+  <div class="fs-controls">
+    <div class="fs-caption">
+      <div id="fsTitle" class="cell-title"></div>
+      <div id="fsInfo" class="cell-info"></div>
+    </div>
+    <div class="seek-row">
+      <input id="fsSlider" type="range" min="0" max="100" step="0.1" value="0">
+      <span id="fsTime">0:00 / 0:00</span>
+    </div>
+    <div class="hint">Press ESC or double-click to exit</div>
+  </div>
+</div>
+
+<div id="metaModal" class="modal" hidden>
+  <div class="modal-card">
+    <h3>Video metadata</h3>
+    <pre id="metaText"></pre>
+    <div class="modal-actions">
+      <button id="metaCopy">Copy</button>
+      <button id="metaClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="errModal" class="modal" hidden>
+  <div class="modal-card small">
+    <h3 class="error-title">Error</h3>
+    <p id="errText"></p>
+    <div class="modal-actions"><button id="errOk">OK</button></div>
+  </div>
+</div>
+
+<div id="help" class="modal" hidden>
+  <div class="modal-card small">
+    <h3>Shortcuts</h3>
+    <pre>Tab/Esc Back to setup | R Reshuffle | P Pause/Resume | M Mute/Unmute | ? Toggle Help | Q Quit</pre>
+  </div>
+</div>
+
+<div id="toast" hidden></div>
+<script src="/app.js"></script>
+</body>
+</html>
